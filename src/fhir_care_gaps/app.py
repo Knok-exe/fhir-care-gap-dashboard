@@ -122,17 +122,17 @@ with tab_chart:
     with a:
         st.markdown("**Active problems**")
         st.dataframe(simple_frame(active_problems(events)), hide_index=True,
-                     use_container_width=True)
+                     width="stretch")
     with b:
         st.markdown("**Medications**")
         st.dataframe(simple_frame(medications(events)), hide_index=True,
-                     use_container_width=True)
+                     width="stretch")
     with c:
         st.markdown("**Allergies**")
-        st.dataframe(simple_frame(allergies(events)), hide_index=True, use_container_width=True)
+        st.dataframe(simple_frame(allergies(events)), hide_index=True, width="stretch")
     st.markdown("**Full timeline**")
     frame = events_frame(events)
-    st.dataframe(frame, hide_index=True, use_container_width=True)
+    st.dataframe(frame, hide_index=True, width="stretch")
     st.download_button("Download timeline CSV", frame.to_csv(index=False), "timeline.csv",
                        "text/csv")
 
