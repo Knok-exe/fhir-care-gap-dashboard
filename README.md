@@ -1,5 +1,7 @@
 # fhir-care-gap-dashboard
 
+**Live demo: https://fhir-care-gaps.streamlit.app** (synthetic data only)
+
 Streamlit dashboard over a FHIR R4 server: pick a **synthetic** patient, chart vitals over time
 (HbA1c, blood pressure, weight, BMI), list problems / meds / allergies, and compute **care gaps**
 with the rule, window and dated evidence shown next to every flag.
