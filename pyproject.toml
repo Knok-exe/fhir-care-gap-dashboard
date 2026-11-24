@@ -1,0 +1,34 @@
+[project]
+name = "fhir-care-gap-dashboard"
+version = "0.1.0"
+description = "Streamlit dashboard: vitals trends and rule-based care gaps for a synthetic FHIR patient."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "fhir-timeline-cli @ git+https://github.com/Knok-exe/fhir-timeline-cli.git",
+  "streamlit>=1.40",
+  "pandas>=2.2",
+]
+
+[project.scripts]
+fhir-care-gaps = "fhir_care_gaps.launch:main"
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.6"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/fhir_care_gaps"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.ruff]
+line-length = 100
