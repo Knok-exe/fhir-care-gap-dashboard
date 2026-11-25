@@ -35,9 +35,9 @@ def line_frame(points: list[tuple], columns: list[str]) -> pd.DataFrame:
 
 def vitals_frames(events: list[Event]) -> dict[str, pd.DataFrame]:
     return {
-        "HbA1c (%)": line_frame(numeric_series(events, HBA1C), ["HbA1c"]),
-        "Weight (kg)": line_frame(numeric_series(events, WEIGHT), ["Weight"]),
-        "BMI (kg/m2)": line_frame(numeric_series(events, BMI), ["BMI"]),
+        "HbA1c (%)": line_frame(numeric_series(events, HBA1C, ("%",)), ["HbA1c"]),
+        "Weight (kg)": line_frame(numeric_series(events, WEIGHT, ("kg",)), ["Weight"]),
+        "BMI (kg/m2)": line_frame(numeric_series(events, BMI, ("kg/m2", "kg/m^2")), ["BMI"]),
         "Blood pressure (mmHg)": line_frame(bp_series(events), ["Systolic", "Diastolic"]),
     }
 

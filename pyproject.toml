@@ -5,8 +5,8 @@ description = "Streamlit dashboard: vitals trends and rule-based care gaps for a
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-  "fhir-timeline-cli @ git+https://github.com/Knok-exe/fhir-timeline-cli.git",
-  "streamlit>=1.40",
+  "fhir-timeline-cli @ git+https://github.com/Knok-exe/fhir-timeline-cli.git@7aeabd0f5d9048f0f134918a7e24e3fadc751798",
+  "streamlit>=1.50",
   "pandas>=2.2",
 ]
 

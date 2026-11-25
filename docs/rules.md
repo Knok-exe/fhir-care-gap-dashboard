@@ -27,6 +27,10 @@ last N days.* Rules live in `src/fhir_care_gaps/rules.py` as plain data.
   produce `unknown`, never a silent `gap`. (Tests: `test_condition_without_status_is_unknown_not_gap`,
   `test_undated_result_is_unknown_not_gap`.)
 - **Future-dated results don't count.** A result dated after the evaluation date is ignored.
+  The evaluation date is inclusive: anything recorded on that day, at any time, counts.
+- **"Not done" is not done.** An immunization (or medication request) with status `not-done`
+  or `entered-in-error` never satisfies a rule. It is listed as evidence so you can see it was
+  ignored.
 - **Every flag shows its evidence:** the triggering condition, the most recent qualifying result,
   and the rule's explanation.
 - **The evaluation date is an input** (sidebar "as of"), which makes results reproducible and lets
@@ -37,3 +41,5 @@ last N days.* Rules live in `src/fhir_care_gaps/rules.py` as plain data.
 - Code lists are small subsets, not full value sets.
 - No age, sex, pregnancy or exclusion logic. No medication-based triggers.
 - Condition status comes from `clinicalStatus` only; `verificationStatus` is ignored.
+- Observation status (e.g. `cancelled`) is not checked, because the shared timeline `Event`
+  does not carry it.

@@ -28,3 +28,11 @@ def test_active_problems_excludes_resolved():
     events = [ev("Condition", "1", "2020-01-01", "active"),
               ev("Condition", "2", "2020-01-01", "resolved")]
     assert [e.code for e in active_problems(events)] == ["1"]
+
+
+def test_charts_skip_values_in_the_wrong_unit():
+    weights = [ev("Observation", "29463-7", "2024-01-01", "80 kg"),
+               ev("Observation", "29463-7", "2024-01-02", "176 [lb_av]"),
+               ev("Observation", "29463-7", "2024-01-03", "81")]
+    assert [v for _, v in numeric_series(weights, ("29463-7",), ("kg",))] == [80.0, 81.0]
+    assert "59261-8" not in HBA1C  # IFCC mmol/mol must not land on the % chart
