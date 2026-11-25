@@ -16,11 +16,17 @@ Educational demo logic on synthetic data only. Not clinical decision support.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, time, timedelta, timezone
 
 from fhir_timeline.timeline import Event
 
 ACTIVE_STATUSES = {"active", "recurrence", "relapse"}
+
+# Resource statuses that mean "this did not happen". A refused or mistaken immunization must not
+# close a gap. (Observation events don't carry their status through the timeline, so only
+# kinds whose Event.value *is* the status can be screened here.)
+NOT_DONE_STATUSES = {"not-done", "entered-in-error"}
+STATUS_IN_VALUE = {"Immunization", "MedicationRequest"}
 
 # SNOMED CT concepts for the triggering conditions (small, documented subsets).
 DIABETES_CODES = frozenset({"44054006", "46635009", "73211009"})
@@ -115,8 +121,12 @@ def evaluate_rule(rule: Rule, events: list[Event], as_of: datetime) -> RuleResul
             return RuleResult(rule, "not_applicable",
                               "No active matching condition on record.", (), as_of)
 
-    qualifying = [e for e in events
-                  if e.kind == rule.result_kind and e.code in rule.result_codes]
+    matching = [e for e in events if e.kind == rule.result_kind and e.code in rule.result_codes]
+    not_done = [e for e in matching
+                if e.kind in STATUS_IN_VALUE and e.value in NOT_DONE_STATUSES]
+    qualifying = [e for e in matching if e not in not_done]
+    note = (f" ({len(not_done)} matching record(s) marked not done or entered in error were "
+            "ignored.)" if not_done else "")
     cutoff = as_of - timedelta(days=rule.window_days)
     dated = sorted((e for e in qualifying if e.when and e.when <= as_of), key=lambda e: e.when)
     undated = [e for e in qualifying if e.when is None]
@@ -136,10 +146,15 @@ def evaluate_rule(rule: Rule, events: list[Event], as_of: datetime) -> RuleResul
         days = (as_of - last.when).days
         return RuleResult(rule, "gap",
                           f"Last done {last.date_str} ({days} days ago); window is "
-                          f"{rule.window_days} days.", tuple(trigger) + (last,), as_of)
+                          f"{rule.window_days} days.{note}", tuple(trigger) + (last,), as_of)
     return RuleResult(rule, "gap",
-                      f"No qualifying result on record; window is {rule.window_days} days.",
-                      tuple(trigger), as_of)
+                      f"No qualifying result on record; window is {rule.window_days} days."
+                      f"{note}", tuple(trigger) + tuple(not_done), as_of)
+
+
+def end_of_day(day: date) -> datetime:
+    """Last instant of a calendar day (UTC), so results recorded on the as-of day count."""
+    return datetime.combine(day, time.max, tzinfo=timezone.utc)
 
 
 def evaluate(events: list[Event], as_of: datetime | None = None,

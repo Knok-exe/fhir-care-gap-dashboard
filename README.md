@@ -46,7 +46,6 @@ docs/rules.md         rule definitions and limitations
 
 - Small code subsets and illustrative thresholds, no age/sex/exclusion logic
 - Charts use Streamlit's built-in line chart; Plotly would add hover and reference bands
-- Live demo deployment (Streamlit Community Cloud) not set up yet
 
 ## License
 

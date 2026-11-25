@@ -5,7 +5,7 @@ SYNTHETIC TEST DATA ONLY. Educational demo logic, not clinical decision support.
 
 from __future__ import annotations
 
-from datetime import datetime, time, timezone
+from datetime import datetime, timezone
 
 import requests
 import streamlit as st
@@ -13,7 +13,7 @@ from fhir_timeline.cli import fetch_resources, load_demo_resources, patient_labe
 from fhir_timeline.client import DEFAULT_SERVER, FhirClient, FhirError
 from fhir_timeline.timeline import build_timeline
 
-from fhir_care_gaps.rules import describe_evidence, evaluate
+from fhir_care_gaps.rules import describe_evidence, end_of_day, evaluate
 from fhir_care_gaps.series import active_problems, allergies, medications
 from fhir_care_gaps.view import events_frame, gap_counts, result_title, simple_frame, vitals_frames
 
@@ -29,16 +29,19 @@ def search_patients(server: str, name: str) -> list[dict]:
 
 
 @st.cache_data(ttl=300, show_spinner="Loading patient record...")
-def load_patient(server: str, patient_id: str, use_everything: bool) -> tuple[dict, list[dict]]:
+def load_patient(server: str, patient_id: str,
+                 use_everything: bool) -> tuple[dict, list[dict], list[str]]:
     client = FhirClient(server)
-    return client.read("Patient", patient_id), fetch_resources(client, patient_id, None,
-                                                               use_everything)
+    patient = client.read("Patient", patient_id)
+    resources = fetch_resources(client, patient_id, None, use_everything)
+    # `truncated` exists from fhir-timeline-cli 0.1.1; getattr keeps older pins working.
+    return patient, resources, list(getattr(client, "truncated", []))
 
 
-def load_demo() -> tuple[dict, list[dict]]:
+def load_demo() -> tuple[dict, list[dict], list[str]]:
     resources = load_demo_resources()
     patient = next(r for r in resources if r["resourceType"] == "Patient")
-    return patient, [r for r in resources if r["resourceType"] != "Patient"]
+    return patient, [r for r in resources if r["resourceType"] != "Patient"], []
 
 
 # ---------------- sidebar ----------------
@@ -48,24 +51,28 @@ with st.sidebar:
     as_of_date = st.date_input("Evaluate care gaps as of", value=datetime.now(timezone.utc).date())
     patient = None
     resources: list[dict] = []
+    truncated: list[str] = []
     error = None
 
     if source.startswith("FHIR"):
         server = st.text_input("FHIR base URL", DEFAULT_SERVER)
         name = st.text_input("Search patients by name", "Smith")
+        # Rendered before the search so it stays usable even when the search fails.
+        manual_id = st.text_input("...or enter a patient id", "").strip()
         use_everything = st.checkbox("Use Patient/$everything", value=True)
         try:
-            matches = search_patients(server, name) if name else []
-            options = {patient_label(m): m["id"] for m in matches}
-            manual_id = st.text_input("...or enter a patient id", "")
+            options: dict[str, str] = {}
+            if name and not manual_id:
+                matches = search_patients(server, name)
+                options = {patient_label(m): m["id"] for m in matches}
             chosen = st.selectbox("Matching patients", list(options)) if options else None
             patient_id = manual_id or (options[chosen] if chosen else "")
             if patient_id:
-                patient, resources = load_patient(server, patient_id, use_everything)
+                patient, resources, truncated = load_patient(server, patient_id, use_everything)
         except (FhirError, requests.exceptions.RequestException) as exc:
             error = str(exc)
     else:
-        patient, resources = load_demo()
+        patient, resources, truncated = load_demo()
 
 if error:
     st.error(f"Could not load data: {error}")
@@ -75,8 +82,11 @@ if patient is None:
     st.stop()
 
 events = build_timeline(resources)
-as_of = datetime.combine(as_of_date, time.min, tzinfo=timezone.utc)
+as_of = end_of_day(as_of_date)  # results recorded on the as-of day itself count
 results = evaluate(events, as_of)
+if truncated:
+    st.warning("The server had more pages than the client fetched, so this record is "
+               "incomplete and the care-gap results below may be wrong.")
 
 st.subheader(patient_label(patient) if patient.get("id") else "Demo patient (synthetic)")
 

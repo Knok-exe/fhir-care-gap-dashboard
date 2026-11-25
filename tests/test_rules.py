@@ -1,9 +1,9 @@
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 import pytest
 from fhir_timeline.timeline import Event
 
-from fhir_care_gaps.rules import DEFAULT_RULES, evaluate, evaluate_rule
+from fhir_care_gaps.rules import DEFAULT_RULES, end_of_day, evaluate, evaluate_rule
 
 AS_OF = datetime(2026, 11, 24, tzinfo=timezone.utc)
 DIABETES, HTN, FLU = DEFAULT_RULES
@@ -106,3 +106,27 @@ def test_evaluate_returns_one_result_per_rule(events):
     results = evaluate(events, AS_OF)
     assert [r.rule.id for r in results] == [r.id for r in DEFAULT_RULES]
     assert all(r.as_of == AS_OF for r in results)
+
+
+# ---- review fixes ----------------------------------------------------------------------
+
+
+def flu(when, state="completed"):
+    return ev("Immunization", "140", when, state, "CVX")
+
+
+@pytest.mark.parametrize("state", ["not-done", "entered-in-error"])
+def test_refused_or_erroneous_vaccine_does_not_close_the_gap(state):
+    result = evaluate_rule(FLU, [flu("2026-10-01", state)], AS_OF)
+    assert result.status == "gap"
+    assert "ignored" in result.detail and len(result.evidence) == 1
+
+
+def test_completed_vaccine_still_counts_next_to_a_refusal():
+    events = [flu("2026-09-01", "not-done"), flu("2026-10-01")]
+    assert status(FLU, events) == "ok"
+
+
+def test_result_recorded_later_on_the_as_of_day_counts():
+    shot = flu("2026-11-24T15:30:00")
+    assert status(FLU, [shot], end_of_day(date(2026, 11, 24))) == "ok"
